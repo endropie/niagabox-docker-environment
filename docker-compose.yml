@@ -1,0 +1,66 @@
+version: "3.8"
+services:
+  #PHP Service
+  boxbilling:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    container_name: boxbilling
+    restart: unless-stopped
+    tty: true
+    environment:
+      DB_HOST: db
+      DB_NAME: ${MYSQL_DATABASE:-boxbilling}
+      DB_USER: ${MYSQL_USERNAME:-boxbilling}
+      DB_PASS: ${MYSQL_PASSWORD:-password}
+    working_dir: /var/www
+    volumes:
+      - ./boxbilling:/var/www/boxbilling
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - network
+
+  #Nginx Service
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "8004:84"
+    volumes:
+      - ./boxbilling/:/var/www/boxbilling/
+      - ./landing/:/var/www/landing/
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - network
+
+  #MySQL Service
+  db:
+    image: mysql:5.7
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "33063:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-boxbilling}
+      MYSQL_USER: ${MYSQL_USERNAME:-boxbilling}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - network
+
+#Networks
+networks:
+  network:
+    driver: bridge
+#Volumes
+volumes:
+  dbdata:
+    driver: local
